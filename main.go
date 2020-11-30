@@ -168,7 +168,7 @@ func main() {
 	errlog := log.New(err_file, "", log.Ldate)
 	errlog.Println("TESTING")
 
-	csvFile, err := os.Open("/home/pl/sentinel-visor/5tipsets.csv")
+	csvFile, err := os.Open("/home/pl/sentinel-visor/tipsets.csv")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -176,6 +176,8 @@ func main() {
 	filenameChan := make(chan string, 0)
 	dbcopyChan := make(chan []interface{}, 0)
 	workerCount := 1
+	count := 0
+	max_files := 1
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 		go worker(filenameChan, dbcopyChan, errlog)
@@ -192,8 +194,11 @@ func main() {
 		height := row[0]
 		messageFolder := "/lotus/output"
 		filename := messageFolder + "/messages" + height + ".csv"
-
+		if count > max_files {
+			break
+		}
 		filenameChan <- filename
+		count++
 	}
 	close(filenameChan)
 	wg.Wait()
