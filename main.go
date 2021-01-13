@@ -121,6 +121,7 @@ func dbcopier(ctx context.Context, dbcopyChan chan []interface{}) {
 		// log.Fatal(err)
 	}
 	fmt.Println("Wrote ", copyCount)
+	return
 	// close(dbcopyChan)
 }
 
@@ -137,9 +138,8 @@ func (dbc *DBCopier) Next() bool {
 	}
 	next := <-dbc.c
 	dbc.count += 1
-	fmt.Println(dbc.count)
-	if dbc.count > 1 {
-		fmt.Println("FLIPPING")
+	// fmt.Println(dbc.count)
+	if dbc.count > 1000000 {
 		dbc.finished = true
 	}
 	dbc.current = next
@@ -148,7 +148,6 @@ func (dbc *DBCopier) Next() bool {
 }
 
 func (dbc *DBCopier) Values() ([]interface{}, error) {
-	fmt.Println(dbc.current)
 	return dbc.current, nil
 }
 
@@ -166,18 +165,15 @@ func main() {
 	}
 
 	errlog := log.New(err_file, "", log.Ldate)
-	errlog.Println("TESTING")
 
 	csvFile, err := os.Open("/home/pl/sentinel-visor/tipsets.csv")
 	if err != nil {
 		log.Fatal(err)
 	}
 	reader := csv.NewReader(bufio.NewReader(csvFile))
-	filenameChan := make(chan string, 0)
-	dbcopyChan := make(chan []interface{}, 0)
-	workerCount := 1
-	count := 0
-	max_files := 1
+	filenameChan := make(chan string, 1000)
+	dbcopyChan := make(chan []interface{}, 10000)
+	workerCount := 20
 	for i := 0; i < workerCount; i++ {
 		wg.Add(1)
 		go worker(filenameChan, dbcopyChan, errlog)
@@ -194,11 +190,7 @@ func main() {
 		height := row[0]
 		messageFolder := "/lotus/output"
 		filename := messageFolder + "/messages" + height + ".csv"
-		if count > max_files {
-			break
-		}
 		filenameChan <- filename
-		count++
 	}
 	close(filenameChan)
 	wg.Wait()
